@@ -1,8 +1,10 @@
 import re
 import json
+from nltk.stem.lancaster import LancasterStemmer
+from nltk.corpus import stopwords
+import logging
 
-
-
+logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s")
 def get_all_reviewers(reviews):
     reviewers_map = dict()
     for review in reviews:
@@ -15,12 +17,19 @@ def get_all_reviewers(reviews):
         reviewer_index_map[r] = i
     return L, reviewer_index_map
 
+def is_word_useful(word):
+    for c in word:
+        if c.isdigit():
+            return False
+    if "http://" in word or "https://" in word:
+        return False
+    return True
 
+    
 def get_all_words(reviews):
     s = set()
     for review in reviews:
-        L = re.split(r"[\s\n\t]+", review["textual-content"])
-        for w in L:
+        for w in review["textual-content"]:
             s.add(w)
     l = list(s)
     m = dict()
@@ -34,9 +43,29 @@ def remove_stop_words(word_list, word_index_map):
 
 if __name__ == "__main__":
 
-    json_file = open('Android.json', 'r')
+    json_file = open('LibreOffice.json', 'r')
     reviews = json.loads(json_file.read())
     json_file.close()
+
+    stemmer = LancasterStemmer()
+    def word_stem(word):
+        if word.endswith('.') or word.endswith(',') or word.endswith(':') or word.endswith('\'') or word.endswith('\"'):
+            word = word[:-1]
+        if word.startswith(',') or word.startswith('.') or word.startswith(':') or word.startswith('\'') or word.startswith('\"'):
+            word = word[1:]
+        return stemmer.stem(word)
+
+    def process_textual_content(content):
+        splitted_words = list(
+            map(lambda x: word_stem(x),
+                filter(lambda x: is_word_useful(x), re.split(r"[\s\n\t]+", content))
+            )
+        )
+        return splitted_words
+
+    for rev in reviews:
+        rev["textual-content"] = process_textual_content(rev["textual-content"])
+    logging.info("Word preprocessing completed.")
 
     reviewers, reviewer_map = get_all_reviewers(reviews)
     word_list, word_map = get_all_words(reviews)
@@ -45,6 +74,7 @@ if __name__ == "__main__":
     current_review_count = 0
     review_count_map = dict()
 
+    logging.info('{} reviews, {} reviewers, {} words in total.'.format(len(reviews), len(reviewers), len(word_list)))
     simularity_cache = {}
     def calc_simularity(rev1, rev2):
         key = str(rev1["id"]) + "-" + str(rev2["id"])
@@ -65,7 +95,7 @@ if __name__ == "__main__":
         return ret
 
     def transform_review_format(rev, rev_id):
-        rev["textual-content"] = list(map(lambda x: word_map[x], re.split(r"[\s\n\t]+", rev["textual-content"])))
+        rev["textual-content"] = list(map(lambda x: word_map[x], rev["textual-content"]))
         reviewer_indices = []
         for r in rev["reviewers"]:
             reviewer_indices.append(reviewer_map[r["id"]])

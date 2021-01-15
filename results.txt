@@ -1,7 +1,0 @@
-Android:
-Top-10 Predict Accuracy: 0.8188129121832697
-Top-5 Predict Accuracy: 0.743607543676964
-Top-3 Predict Accuracy: 0.6877241698484322
-Top-1 Predict Accuracy: 0.5096609973388869
-MRR: 0.6186626869877156
-
