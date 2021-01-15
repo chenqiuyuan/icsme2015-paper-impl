@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(me
 review_select_condition = "(status:merged OR status:abandoned) AND after:{} AND before:{}"
 url_format_str = "{}/changes/?q={}&n={}"
 max_returned_results = 10000
-proxy = "http://172.16.0.1:1087"
+proxy = "http://127.0.0.1:1087"
 date_delta = 5
 
 projects = [

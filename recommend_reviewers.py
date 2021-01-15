@@ -3,6 +3,7 @@ import json
 from nltk.stem.lancaster import LancasterStemmer
 from nltk.corpus import stopwords
 import logging
+import argparse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s")
 def get_all_reviewers(reviews):
