@@ -43,7 +43,7 @@ def remove_stop_words(word_list, word_index_map):
 
 if __name__ == "__main__":
 
-    json_file = open('LibreOffice.json', 'r')
+    json_file = open('OpenStack.json', 'r')
     reviews = json.loads(json_file.read())
     json_file.close()
 
@@ -144,19 +144,27 @@ if __name__ == "__main__":
     is_recomm_accumulation_top_5 = 0
     is_recomm_accumulation_top_3 = 0
     is_recomm_accumulation_top_1 = 0
-    for i in range(100, len(reviews)):
+    i = 100
+    current_predicted = 0
+    while i < len(reviews):
+        update_model(reviews[i])
+        if i + 1 == len(reviews):
+            break
         L = []
         for j in range(len(reviewers)):
-
-            c = 0.7 * get_conf_path(reviews[i], i - 100, i, reviewers[j]) + 0.3 * get_conf_text(reviews[i], j)
+            c = 0.7 * get_conf_path(reviews[i + 1], i - 100 + 1, i + 1, reviewers[j]) + 0.3 * get_conf_text(reviews[i + 1], j)
             L.append((j, c))
         L.sort(key=lambda x: x[1], reverse=True)
-        print(L[:10])
+        # logging.info(print(L[:10]))
         L = list(map(lambda x: x[0], L))
-        print("{} recommended: {}\n actual: {}\n".format(i, L[:5], reviews[i]["reviewers"]))
+
+        logging.info("Review ID: {}".format(i + 1))
+        logging.info("Recommended: {}".format(L[:10]))
+        logging.info("Actual: {}".format(reviews[i + 1]["reviewers"]))
+        current_predicted += 1
         rank = -1
         for k in range(len(L)):
-            if L[k] in reviews[i]["reviewers"]:
+            if L[k] in reviews[i + 1]["reviewers"]:
                 rank = k
                 break
         mrr_accumulation += 1 / (rank + 1)
@@ -164,7 +172,7 @@ if __name__ == "__main__":
         is_recomm_top_5 = 0
         is_recomm_top_3 = 0
         is_recomm_top_1 = 0
-        for r in reviews[i]["reviewers"]:
+        for r in reviews[i + 1]["reviewers"]:
             if r in L[:10]:
                 is_recomm_top_10 = 1
             if r in L[:5]:
@@ -177,10 +185,11 @@ if __name__ == "__main__":
         is_recomm_accumulation_top_5 += is_recomm_top_5
         is_recomm_accumulation_top_3 += is_recomm_top_3
         is_recomm_accumulation_top_1 += is_recomm_top_1
-        update_model(reviews[i])
+        update_model(reviews[i + 1])
 
-    print('Top-10 Predict Accuracy:', is_recomm_accumulation_top_10 / (len(reviews) - 100))
-    print('Top-5 Predict Accuracy:', is_recomm_accumulation_top_5 / (len(reviews) - 100))
-    print('Top-3 Predict Accuracy:', is_recomm_accumulation_top_3 / (len(reviews) - 100))
-    print('Top-1 Predict Accuracy:', is_recomm_accumulation_top_1 / (len(reviews) - 100))
-    print('MRR:', mrr_accumulation / (len(reviews) - 100))
+        logging.info('Top-10 Predict Accuracy: %.2f', is_recomm_accumulation_top_10 / current_predicted)
+        logging.info('Top-5 Predict Accuracy: %.2f', is_recomm_accumulation_top_5 / current_predicted)
+        logging.info('Top-3 Predict Accuracy: %.2f', is_recomm_accumulation_top_3 / current_predicted)
+        logging.info('Top-1 Predict Accuracy: %.2f', is_recomm_accumulation_top_1 / current_predicted)
+        logging.info('MRR: %.2f', mrr_accumulation / current_predicted)
+        i += 2
