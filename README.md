@@ -2,28 +2,27 @@ Implementation of a paper in ICSME 2015
 ==============
 This project implements the model ***TIE*** described in paper [Who Should Review This Change?](http://www.mysmu.edu/faculty/davidlo/papers/icsme15-review.pdf).
 
-How to use
+### How to use
 ==============
 Run `retrieve_reviews.py` to retrieve historical reviews from Gerrit systems. You can modify the variable `projects` in this file.
 
 Here I provide 4 JSON files that contains reviews from 4 big projects. You can use these files directly.
 
-Run `recommend_reviewers.py` to train a recommendation model and test the model at the same time. The method is described in the paper:
+Run `train_and_test.py` to train a recommendation model and test the model at the same time. The method is described in the paper:
 
 > The process proceeds as follows: first, we train a TIE model by using the first review, and test the trained model by using the second review, then we update the TIE model by using the second review (with its ground truth reviewers). Next, we test using the third review, and update the TIE model by using the third review, and so on.
-
 
 You must run the script with these parameters shown below:
 
 | Parameter | Description |
 | --- | --- |
 | *reviews_file* | the input JSON file containing the reviews |
-| *output_file* | the file to output the results |
+| *output_file* | the file to output the results in |
 
 Example command:
 
 ```bash
-python recommend_reviewers.py --reviews_file=Android.json --output_file=output/Android_output.json
+python train_and_test.py --reviews_file=Android.json --output_file=output/Android_output.json
 ```
 
 Input Format
@@ -66,7 +65,7 @@ An example is shown below:
 
 Output Format
 ==============
-The output JSON object contains top-10 recommended reviewers' IDs for all reviews, together with statistics.
+Output JSON object contains top-10 recommended reviewers' IDs for all reviews, together with statistics.
 
 An example is shown below:
 
@@ -93,7 +92,7 @@ An example is shown below:
 Results on 4 projects
 ==============
 
-1. Statistics of collected data
+#### 1. Statistics of collected data
 
 | Project | Time Period | Revi. | Re. | Avg. Re. |
 | --- | --- | --- | --- | --- |
@@ -102,9 +101,9 @@ Results on 4 projects
 | OpenStack | 2011/07 - 2012/05 | 7064 | 367 | 3.97 |
 | QT | 2011/05 - 2012/05 | 24734 | 530 | 3.31 |
 
-Here `Revi.` refers to the number of collected reviews, `Re.` refers to the number of the unique reviewers extracted from collected reviews, and `Avg.Re` refers to the average number of code reviewers per review.
+Here `Revi.` refers to the number of collected reviews, `Re.` refers to the number of the unique reviewers extracted from collected reviews, and `Avg. Re.` refers to the average number of code reviewers per review.
 
-2. Results
+#### 2. Results
 
 | Project | Top-10 P.A. | Top-5 P.A. | Top-3 P.A. | Top-1 P.A. | MRR |
 | --- | --- | --- | --- | --- | --- |
@@ -114,3 +113,8 @@ Here `Revi.` refers to the number of collected reviews, `Re.` refers to the numb
 | QT | 0.93 | 0.89 | 0.85 | 0.65 | 0.76 |
 
 Here `P.A.` means *Prediction Accuracy*.
+
+Other Requirements
+==============
+
+Python packages `nltk` and `argparse` are needed.
