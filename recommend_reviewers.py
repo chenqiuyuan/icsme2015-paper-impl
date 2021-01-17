@@ -42,12 +42,19 @@ def remove_stop_words(word_list, word_index_map):
     pass
     # to-do
 
-if __name__ == "__main__":
 
-    json_file = open('OpenStack.json', 'r')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--reviews_file", required=True, help="The input JSON file containing the reviews.")
+    parser.add_argument("--output_file", required=True, help="The file to output the results.")
+    args = parser.parse_args()
+
+    json_file = open(args.reviews_file, 'r')
     reviews = json.loads(json_file.read())
     json_file.close()
 
+    if len(reviews) < 100:
+        raise Exception("Too few reviews.")
     stemmer = LancasterStemmer()
     def word_stem(word):
         if word.endswith('.') or word.endswith(',') or word.endswith(':') or word.endswith('\'') or word.endswith('\"'):
@@ -69,6 +76,7 @@ if __name__ == "__main__":
     logging.info("Word preprocessing completed.")
 
     reviewers, reviewer_map = get_all_reviewers(reviews)
+    original_id_list = list(map(lambda x: x["id"], reviews))
     word_list, word_map = get_all_words(reviews)
     remove_stop_words(word_list, word_map)
     models = [dict() for _ in range(len(reviewers))]
@@ -147,6 +155,8 @@ if __name__ == "__main__":
     is_recomm_accumulation_top_1 = 0
     i = 100
     current_predicted = 0
+
+    result_json = { "recommendation-results": [] }
     while i < len(reviews):
         update_model(reviews[i])
         if i + 1 == len(reviews):
@@ -156,12 +166,18 @@ if __name__ == "__main__":
             c = 0.7 * get_conf_path(reviews[i + 1], i - 100 + 1, i + 1, reviewers[j]) + 0.3 * get_conf_text(reviews[i + 1], j)
             L.append((j, c))
         L.sort(key=lambda x: x[1], reverse=True)
-        # logging.info(print(L[:10]))
-        L = list(map(lambda x: x[0], L))
 
-        logging.info("Review ID: {}".format(i + 1))
+        L = list(map(lambda x: x[0], L))
+        logging.info("Progress: {}/{} reviews".format(i + 1, len(reviews)))
+        logging.info("ID: {}".format(original_id_list[i + 1]))
         logging.info("Recommended: {}".format(L[:10]))
         logging.info("Actual: {}".format(reviews[i + 1]["reviewers"]))
+        result_json["recommendation-results"].append(
+            {
+                "review-id": reviews[i + 1]["id"],
+                "result": list(map(lambda x: reviewers[x], L[:10]))
+            }
+        )
         current_predicted += 1
         rank = -1
         for k in range(len(L)):
@@ -188,9 +204,25 @@ if __name__ == "__main__":
         is_recomm_accumulation_top_1 += is_recomm_top_1
         update_model(reviews[i + 1])
 
-        logging.info('Top-10 Predict Accuracy: %.2f', is_recomm_accumulation_top_10 / current_predicted)
-        logging.info('Top-5 Predict Accuracy: %.2f', is_recomm_accumulation_top_5 / current_predicted)
-        logging.info('Top-3 Predict Accuracy: %.2f', is_recomm_accumulation_top_3 / current_predicted)
-        logging.info('Top-1 Predict Accuracy: %.2f', is_recomm_accumulation_top_1 / current_predicted)
-        logging.info('MRR: %.2f', mrr_accumulation / current_predicted)
+        top10acc = is_recomm_accumulation_top_10 / current_predicted
+        top5acc = is_recomm_accumulation_top_5 / current_predicted
+        top3acc = is_recomm_accumulation_top_3 / current_predicted
+        top1acc = is_recomm_accumulation_top_1 / current_predicted
+        mrr_val = mrr_accumulation / current_predicted
+        logging.info('Top-10 Predict Accuracy: %.2f', top10acc)
+        logging.info('Top-5 Predict Accuracy: %.2f', top5acc)
+        logging.info('Top-3 Predict Accuracy: %.2f', top3acc)
+        logging.info('Top-1 Predict Accuracy: %.2f', top1acc)
+        logging.info('MRR: %.2f', mrr_val)
+        result_json["top10-accuracy"] = round(top10acc, 2)
+        result_json["top5-accuracy"] = round(top5acc, 2)
+        result_json["top3-accuracy"] = round(top3acc, 2)
+        result_json["top1-accuracy"] = round(top1acc, 2)
+        result_json["mrr"] = round(mrr_val, 2)
+
         i += 2
+    
+    result_file = open(args.output_file, 'w')
+    result_file.write(json.dumps(result_json))
+    logging.info("Written to {}.".format(args.output_file))
+    result_file.close()

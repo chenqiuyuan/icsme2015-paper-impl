@@ -12,32 +12,32 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(me
 review_select_condition = "(status:merged OR status:abandoned) AND after:{} AND before:{}"
 url_format_str = "{}/changes/?q={}&n={}"
 max_returned_results = 10000
-proxy = "http://127.0.0.1:1087"
+proxy = "http://192.168.200.1:1087"
 date_delta = 5
 
 projects = [
-    {
-        "name": "QT",
-        "time-start": "2011-05-01",
-        "time-end": "2012-05-01",
-        "url": "https://codereview.qt-project.org"
-    },
-    {
-        "name": "LibreOffice",
-        "time-start": "2012-03-01",
-        "time-end": "2014-06-01",
-        "url": "https://gerrit.libreoffice.org"
-    },
-    {
-        "name": "OpenStack",
-        "time-start": "2011-07-01",
-        "time-end": "2012-05-01",
-        "url": "https://review.opendev.org"
-    },
+    # {
+    #     "name": "QT",
+    #     "time-start": "2011-05-01",
+    #     "time-end": "2012-05-31",
+    #     "url": "https://codereview.qt-project.org"
+    # },
+    # {
+    #     "name": "LibreOffice",
+    #     "time-start": "2012-03-01",
+    #     "time-end": "2014-06-30",
+    #     "url": "https://gerrit.libreoffice.org"
+    # },
+    # {
+    #     "name": "OpenStack",
+    #     "time-start": "2011-07-01",
+    #     "time-end": "2012-05-31",
+    #     "url": "https://review.opendev.org"
+    # },
     {
         "name": "Android",
         "time-start": "2008-10-01",
-        "time-end": "2012-01-01",
+        "time-end": "2012-01-31",
         "url": "https://android-review.googlesource.com"
     }
 ]
@@ -75,7 +75,8 @@ if __name__ == "__main__":
                 try:
                     current_revision_id = review["current_revision"]
                     
-                    review_list.append({ 
+                    review_list.append({
+                        "id": review["id"],
                         "uploaded-time": review["created"],
                         "reviewers": [ { "id": x["_account_id"], "name": x["name"] } for x in review["reviewers"]["REVIEWER"] ],
                         "textual-content": review["revisions"][current_revision_id]["commit"]["message"],
