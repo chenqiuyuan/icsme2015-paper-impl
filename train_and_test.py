@@ -1,3 +1,4 @@
+
 import re
 import json
 from nltk.stem.lancaster import LancasterStemmer
@@ -5,57 +6,37 @@ from nltk.corpus import stopwords
 import logging
 import argparse
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s")
-def get_all_reviewers(reviews):
-    reviewers_map = dict()
-    for review in reviews:
-        for reviewer in review["reviewers"]:
-            reviewers_map[reviewer["id"]] = reviewer["name"]
-    
-    L = list(reviewers_map.keys()) #, reviewers_map
-    reviewer_index_map = dict()
-    for i, r in enumerate(L):
-        reviewer_index_map[r] = i
-    return L, reviewer_index_map
-
-def is_word_useful(word):
-    for c in word:
-        if c.isdigit():
-            return False
-    if "http://" in word or "https://" in word:
-        return False
-    return True
-
-    
-def get_all_words(reviews):
-    s = set()
-    for review in reviews:
-        for w in review["textual-content"]:
-            s.add(w)
-    l = list(s)
-    m = dict()
-    for i, w in enumerate(l):
-        m[w] = i
-    return l, m
-
-def remove_stop_words(word_list, word_index_map):
-    pass
-    # to-do
-
-
+from model import TIEModel
 if __name__ == "__main__":
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--reviews_file", required=True, help="The input JSON file containing the reviews.")
-    parser.add_argument("--output_file", required=True, help="The file to output the results.")
+    parser.add_argument("--reviews_file", required=True, help="the input JSON file containing the reviews")
+    parser.add_argument("--output_file", required=True, help="the file to output the results")
+    parser.add_argument("--model_file", required=True, help="the file to store the model")
     args = parser.parse_args()
 
     json_file = open(args.reviews_file, 'r')
     reviews = json.loads(json_file.read())
     json_file.close()
 
-    if len(reviews) < 100:
-        raise Exception("Too few reviews.")
     stemmer = LancasterStemmer()
+
+    def get_all_reviewers(reviews):
+        reviewer_set = set()
+        for review in reviews:
+            for reviewer in review["reviewers"]:
+                reviewer_set.add(reviewer["id"])
+        return list(reviewer_set)
+
+    def is_word_useful(word):
+        for c in word:
+            if c.isdigit():
+                return False
+        if "http://" in word or "https://" in word:
+            return False
+        return True
+
     def word_stem(word):
         if word.endswith('.') or word.endswith(',') or word.endswith(':') or word.endswith('\'') or word.endswith('\"'):
             word = word[:-1]
@@ -63,166 +44,72 @@ if __name__ == "__main__":
             word = word[1:]
         return stemmer.stem(word)
 
-    def process_textual_content(content):
+    def split_text(txt):
         splitted_words = list(
             map(lambda x: word_stem(x),
-                filter(lambda x: is_word_useful(x), re.split(r"[\s\n\t]+", content))
+                filter(lambda x: is_word_useful(x), re.split(r"[\s\n\t]+", txt))
             )
         )
         return splitted_words
 
-    for rev in reviews:
-        rev["textual-content"] = process_textual_content(rev["textual-content"])
-    logging.info("Word preprocessing completed.")
+    def get_all_words(reviews):
+        s = set()
+        for review in reviews:
+            for w in split_text(review["textual-content"]):
+                s.add(w)
+        l = list(s)
+        return l
 
-    reviewers, reviewer_map = get_all_reviewers(reviews)
-    original_id_list = list(map(lambda x: x["id"], reviews))
-    word_list, word_map = get_all_words(reviews)
-    remove_stop_words(word_list, word_map)
-    models = [dict() for _ in range(len(reviewers))]
-    current_review_count = 0
-    review_count_map = dict()
+    model = TIEModel(word_list=get_all_words(reviews), reviewer_list=get_all_reviewers(reviews), alpha=0.7, M=50, recommended_count=1000, text_splitter=split_text)
 
-    logging.info('{} reviews, {} reviewers, {} words in total.'.format(len(reviews), len(reviewers), len(word_list)))
-    simularity_cache = {}
-    def calc_simularity(rev1, rev2):
-        key = str(rev1["id"]) + "-" + str(rev2["id"])
-        if key in simularity_cache:
-            return simularity_cache[key]
-        changed_files1 = rev1["changed-files"][:1000]
-        changed_files2 = rev2["changed-files"][:1000]
-        if len(changed_files1) == 0 or len(changed_files2) == 0:
-            return 0
-        sum_score = 0
-        for f1 in changed_files1:
-            s1 = set(f1.split('/'))
-            for f2 in changed_files2:
-                s2 = set(f2.split('/'))
-                sum_score += (len(s1 & s2)) / max(len(s1), len(s2))
-        ret = sum_score / (len(changed_files1) * len(changed_files2) + 1)
-        simularity_cache[key] = ret
-        return ret
-
-    def transform_review_format(rev, rev_id):
-        rev["textual-content"] = list(map(lambda x: word_map[x], rev["textual-content"]))
-        reviewer_indices = []
-        for r in rev["reviewers"]:
-            reviewer_indices.append(reviewer_map[r["id"]])
-        rev["reviewers"] = reviewer_indices
-        rev["id"] = rev_id
-
-    def update_model(new_rev):
-        word_indices = new_rev["textual-content"]
-        for reviewer_index in new_rev["reviewers"]:
-            review_count_map[reviewer_index] = review_count_map.get(reviewer_index, 0) + 1
-            for word_index in word_indices:
-                models[reviewer_index][word_index] = models[reviewer_index].get(word_index, 0) + 1
-        global current_review_count
-        current_review_count += 1
-        
-    
-    def get_conf_path(rev, history_rev_start, history_rev_end, reviewer_index):
-        s = 0
-        for i in range(history_rev_start, history_rev_end):
-            old_rev = reviews[i]
-            c = calc_simularity(old_rev, rev)
-            for index in old_rev["reviewers"]:
-                if index == reviewer_index:
-                    s += c
-                    break
-        return s
-
-    def get_conf_text(rev, reviewer_index):
-        product = 1
-        for word_index in rev["textual-content"]:
-            s = 0
-            for k, v in models[reviewer_index].items():
-                s += v
-            p = models[reviewer_index].get(word_index, 1e-9) / (s + 1)
-            product *= p
-        return review_count_map.get(reviewer_index, 0) / current_review_count * product
-    
-    for i in range(len(reviews)):
-        transform_review_format(reviews[i], i)
-
-    for i in range(100):
-        update_model(reviews[i])
-    
     mrr_accumulation = 0
     is_recomm_accumulation_top_10 = 0
     is_recomm_accumulation_top_5 = 0
     is_recomm_accumulation_top_3 = 0
     is_recomm_accumulation_top_1 = 0
-    i = 100
     current_predicted = 0
 
-    result_json = { "recommendation-results": [] }
+    i = 0
     while i < len(reviews):
-        update_model(reviews[i])
         if i + 1 == len(reviews):
             break
-        L = []
-        for j in range(len(reviewers)):
-            c = 0.7 * get_conf_path(reviews[i + 1], i - 100 + 1, i + 1, reviewers[j]) + 0.3 * get_conf_text(reviews[i + 1], j)
-            L.append((j, c))
-        L.sort(key=lambda x: x[1], reverse=True)
-
-        L = list(map(lambda x: x[0], L))
+        model.update(reviews[i])
+        recommended_reviewers = model.recommend(reviews[i + 1])
+        actual_reviewers = list(map(lambda x: x["id"], reviews[i + 1]["reviewers"]))
+        
         logging.info("Progress: {}/{} reviews".format(i + 1, len(reviews)))
-        logging.info("ID: {}".format(original_id_list[i + 1]))
-        logging.info("Recommended: {}".format(L[:10]))
-        logging.info("Actual: {}".format(reviews[i + 1]["reviewers"]))
-        result_json["recommendation-results"].append(
-            {
-                "review-id": reviews[i + 1]["id"],
-                "result": list(map(lambda x: reviewers[x], L[:10]))
-            }
-        )
+        logging.info("ID: {}".format(reviews[i + 1]["id"]))
+        logging.info("Recommended: {}".format(recommended_reviewers[:10]))
+        logging.info("Actual: {}".format(actual_reviewers))
         current_predicted += 1
-        rank = -1
-        for k in range(len(L)):
-            if L[k] in reviews[i + 1]["reviewers"]:
-                rank = k
-                break
-        mrr_accumulation += 1 / (rank + 1)
+
         is_recomm_top_10 = 0
         is_recomm_top_5 = 0
         is_recomm_top_3 = 0
         is_recomm_top_1 = 0
-        for r in reviews[i + 1]["reviewers"]:
-            if r in L[:10]:
+        for r in actual_reviewers:
+            if r in recommended_reviewers[:10]:
                 is_recomm_top_10 = 1
-            if r in L[:5]:
+            if r in recommended_reviewers[:5]:
                 is_recomm_top_5 = 1
-            if r in L[:3]:
+            if r in recommended_reviewers[:3]:
                 is_recomm_top_3 = 1
-            if r == L[0]:
+            if r == recommended_reviewers[0]:
                 is_recomm_top_1 = 1
         is_recomm_accumulation_top_10 += is_recomm_top_10
         is_recomm_accumulation_top_5 += is_recomm_top_5
         is_recomm_accumulation_top_3 += is_recomm_top_3
         is_recomm_accumulation_top_1 += is_recomm_top_1
-        update_model(reviews[i + 1])
 
         top10acc = is_recomm_accumulation_top_10 / current_predicted
         top5acc = is_recomm_accumulation_top_5 / current_predicted
         top3acc = is_recomm_accumulation_top_3 / current_predicted
         top1acc = is_recomm_accumulation_top_1 / current_predicted
-        mrr_val = mrr_accumulation / current_predicted
+
         logging.info('Top-10 Predict Accuracy: %.2f', top10acc)
         logging.info('Top-5 Predict Accuracy: %.2f', top5acc)
         logging.info('Top-3 Predict Accuracy: %.2f', top3acc)
         logging.info('Top-1 Predict Accuracy: %.2f', top1acc)
-        logging.info('MRR: %.2f', mrr_val)
-        result_json["top10-accuracy"] = round(top10acc, 2)
-        result_json["top5-accuracy"] = round(top5acc, 2)
-        result_json["top3-accuracy"] = round(top3acc, 2)
-        result_json["top1-accuracy"] = round(top1acc, 2)
-        result_json["mrr"] = round(mrr_val, 2)
-
+        model.update(reviews[i + 1])
         i += 2
-    
-    result_file = open(args.output_file, 'w')
-    result_file.write(json.dumps(result_json))
-    logging.info("Written to {}.".format(args.output_file))
-    result_file.close()
+    model.save(args.model_file)

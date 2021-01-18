@@ -2,7 +2,7 @@ Implementation of a paper in ICSME 2015
 ==============
 This project implements the model ***TIE*** described in paper [Who Should Review This Change?](http://www.mysmu.edu/faculty/davidlo/papers/icsme15-review.pdf).
 
-### How to use
+How to use
 ==============
 Run `retrieve_reviews.py` to retrieve historical reviews from Gerrit systems. You can modify the variable `projects` in this file.
 
@@ -10,7 +10,7 @@ Here I provide 4 JSON files that contains reviews from 4 big projects. You can u
 
 Run `train_and_test.py` to train a recommendation model and test the model at the same time. The method is described in the paper:
 
-> The process proceeds as follows: first, we train a TIE model by using the first review, and test the trained model by using the second review, then we update the TIE model by using the second review (with its ground truth reviewers). Next, we test using the third review, and update the TIE model by using the third review, and so on.
+> The process proceeds as follows: first, we train a *TIE* model by using the first review, and test the trained model by using the second review, then we update the *TIE* model by using the second review (with its ground truth reviewers). Next, we test using the third review, and update the *TIE* model by using the third review, and so on.
 
 You must run the script with these parameters shown below:
 
@@ -18,6 +18,7 @@ You must run the script with these parameters shown below:
 | --- | --- |
 | *reviews_file* | the input JSON file containing the reviews |
 | *output_file* | the file to output the results in |
+| *model_file* | the file to store the model in |
 
 Example command:
 
@@ -31,7 +32,7 @@ Input JSON is an array that contains many review objects. Each review object con
 - Field `id` is the unique identifier of the review.
 - Field `uploaded-time` is the time when the review was committed to Gerrit system.
 - Field `reviewer` is an array of several reviewer object. Each reviewer object must at least contain field `id`(usually a 32-bit integer).
-- Field `textual-content` is text content of the review.
+- Field `textual-content` is text content of the review, usually commit messages.
 - Field `changed-files` is an array of changed files.
 
 An example is shown below:
@@ -40,7 +41,7 @@ An example is shown below:
 [
     {
         "id": "qt%2Fqtsensors~master~I1c0dd3dea4a0b296388f66fc44fed560da85e028",
-        "uploaded-time": "2012-05-29 23:23:35.000000000",
+        "uploaded-time": "2012-05-29 23:23:35",
         "reviewers": [
             {
                 "id": 1000049,
@@ -107,10 +108,10 @@ Here `Revi.` refers to the number of collected reviews, `Re.` refers to the numb
 
 | Project | Top-10 P.A. | Top-5 P.A. | Top-3 P.A. | Top-1 P.A. | MRR |
 | --- | --- | --- | --- | --- | --- |
-| Android | 0.86 | 0.80 | 0.74 | 0.56 | 0.67 |
+| Android | 0.95 | 0.90 | 0.84 | 0.65 | 0.76 |
 | LibreOffice | 0.89 | 0.80 | 0.74 | 0.53 | 0.66 |
-| OpenStack | 0.73 | 0.41 | 0.25 | 0.06 | 0.24 |
-| QT | 0.93 | 0.89 | 0.85 | 0.65 | 0.76 |
+| OpenStack | 0.98 | 0.97 | 0.95 | 0.86 | 0.91 |
+| QT | 0.97 | 0.95 | 0.93 | 0.87 | 0.90 |
 
 Here `P.A.` means *Prediction Accuracy*.
 
