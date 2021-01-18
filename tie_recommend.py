@@ -5,8 +5,10 @@ import pickle as pkl
 
 class TIEModel:
     """TIE Model class. 
-    `TIE` is an method proposed in an ICSME 2015 paper: Who Should Review This Change?
-    `TIE` combines the advantages of both text mining and file location-based approach.
+    `TIE` is a reviewer recommendation method proposed in an ICSME 2015 paper: 
+      `Who Should Review This Change?
+    `TIE` combines the advantages of both text mining and file location-based
+    approach.
 
     Note that each input review must be a `dict` object, with at least 4 fields:
     - `id`, the unique identifier of the review
@@ -14,19 +16,22 @@ class TIEModel:
     - `textual-content`, the text content of the review, usually commit messages
     - `changed-files`, an array of changed files
 
-    If an review object is used to update the model, then it must contain `reviewers` field,
-    which is an array of review objects. Each review object should contain at least `id` field.
+    If an review object is used to update the model, then it must contain 
+    `reviewers` field, which is an array of review objects. Each review object
+    should contain at least `id` field.
     """
-    def __init__(self, word_list, reviewer_list, alpha=0.7, M=100, text_splitter=lambda x: x.split(' ')):
+    def __init__(self, word_list, reviewer_list, alpha=0.7, M=100, \
+    text_splitter=lambda x: x.split(' ')):
         """Initiates the model with parameters.
 
-        - `word_list` is a list with no repeated words, serving as a vocabulary table.
+        - `word_list` is a list with no repeated words, serving as a vocabulary
+        table.
         - `reviewer_list` is an array of reviewer IDs.
         - `alpha` is a parameter in the original paper, with default value 0.7.
         - `M` is a parameter in the original paper,  with default value 100.
-        - `text_splitter` is a function-like object, which is used to split the textual content of
-        each review. `text_splitter` accepts a `str` object as input, and output an array of
-        strings as splitted words.
+        - `text_splitter` is a function-like object, which is used to split the
+        textual content of each review. `text_splitter` accepts a `str` object
+        as input, and output an array of strings as splitted words.
         """
         self.reviews = []
         self.word_list = word_list
@@ -57,9 +62,11 @@ class TIEModel:
             raise Exception("Cannot update.")
 
         for reviewer_index in review["reviewers"]:
-            self.review_count_map[reviewer_index] = self.review_count_map.get(reviewer_index, 0) + 1
+            self.review_count_map[reviewer_index] = \
+                self.review_count_map.get(reviewer_index, 0) + 1
             for word_index in review["textual-content"]:
-                self.text_models[reviewer_index][word_index] = self.text_models[reviewer_index].get(word_index, 0) + 1
+                self.text_models[reviewer_index][word_index] = \
+                    self.text_models[reviewer_index].get(word_index, 0) + 1
         
         self.reviews.append(review)
 
@@ -70,7 +77,8 @@ class TIEModel:
         review = self._transform_review_format(review)
         L = []
         for j in range(len(self.reviewer_list)):
-            c = (1 - self.alpha) * self._get_conf_text(review, j) + self.alpha * self._get_conf_path(review, j)
+            c = (1 - self.alpha) * self._get_conf_text(review, j) \
+                + self.alpha * self._get_conf_path(review, j)
             L.append((j, c))
         L.sort(key=lambda x: x[1], reverse=True)
         L = list(
@@ -113,7 +121,8 @@ class TIEModel:
     def _get_conf_path(self, review, reviewer_index):
         s = 0
         end_time = review["uploaded-time"]
-        start_time = (datetime.fromtimestamp(end_time) - timedelta(days=self.M)).timestamp()
+        start_time = (datetime.fromtimestamp(end_time) \
+            - timedelta(days=self.M)).timestamp()
 
         start_idx = self._review_history_start_index(start_time)
         end_idx = self._review_history_end_index(end_time)
@@ -131,12 +140,13 @@ class TIEModel:
     def _get_conf_text(self, review, reviewer_index):
         product = 1
         s = 0
-        for k, v in self.text_models[reviewer_index].items():
+        for _, v in self.text_models[reviewer_index].items():
             s += v
         for word_index in review["textual-content"]:
             p = self.text_models[reviewer_index].get(word_index, 1e-9) / (s + 1)
             product *= p
-        return self.review_count_map.get(reviewer_index, 0) / len(self.reviews) * product
+        return self.review_count_map.get(reviewer_index, 0) / len(self.reviews) \
+            * product
 
     def _transform_review_format(self, review):
         word_indices = list(map(lambda x: self.word_map[x],
@@ -144,12 +154,14 @@ class TIEModel:
                 self.text_splitter(review["textual-content"])
             )
         ))
-        reviewer_indices = [self.reviewer_map[_reviewer["id"]] for _reviewer in review["reviewers"]]
+        reviewer_indices = [self.reviewer_map[_reviewer["id"]] \
+            for _reviewer in review["reviewers"]]
         return {
             "textual-content": word_indices,
             "reviewers": reviewer_indices,
             "id": review["id"],
-            "uploaded-time": int(datetime.strptime(review["uploaded-time"], "%Y-%m-%d %H:%M:%S").timestamp()),
+            "uploaded-time": int(datetime.strptime(review["uploaded-time"], \
+                "%Y-%m-%d %H:%M:%S").timestamp()),
             "changed-files": review["changed-files"]
         }
 

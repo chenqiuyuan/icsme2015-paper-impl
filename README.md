@@ -2,7 +2,7 @@ Implementation of a paper in ICSME 2015
 ==============
 This project implements the model ***TIE*** described in paper [Who Should Review This Change?](http://www.mysmu.edu/faculty/davidlo/papers/icsme15-review.pdf).
 
-Files in this repository
+Files in this Repository
 ==============
 - `retrieve_reviews.py` is a utility that retrieves reviews from Gerrit Systems.
 - `tie_recommend.py` is main file that can be imported as a Python module.
