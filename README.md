@@ -2,6 +2,13 @@ Implementation of a paper in ICSME 2015
 ==============
 This project implements the model ***TIE*** described in paper [Who Should Review This Change?](http://www.mysmu.edu/faculty/davidlo/papers/icsme15-review.pdf).
 
+Files in this repository
+==============
+- `retrieve_reviews.py` is a utility that retrieves reviews from Gerrit Systems.
+- `tie_recommend.py` is main file that can be imported as a Python module.
+- `train_and_test.py` is a utility that trains a model and tests it at the same time, and finally outputs recommendation results.
+- `Android.json`, `LibreOffice.json`, `QT.json` and `OpenStack.json` are 4 example input JSON files.
+
 How to use
 ==============
 Run `retrieve_reviews.py` to retrieve historical reviews from Gerrit systems. You can modify the variable `projects` in this file.
@@ -26,16 +33,32 @@ Example command:
 python train_and_test.py --reviews_file=Android.json --output_file=output/Android_output.json
 ```
 
+`tie_recommend.py` can be used as a Python module. Example usage is shown below:
+
+```python
+from tie_recommend import TIEModel
+# some code omitted
+# ...
+tie_model = TIEModel(all_words, all_reviewers, alpha=0.7, M=50)
+tie_model.update(reviews[0])
+recomm_reviewers = tie_model.recommend(reviews[1], max_count=5)
+print("Recommended Reviewers:", recomm_reviewers)
+tie_model.save("temp.bin")
+```
+
 Input Format
 ==============
-Input JSON is an array that contains many review objects. Each review object contains fields `id`, `uploaded-time`, `reviewers`, `textual-content` and `changed-files`:
+TIE model accepts an `dict` object as input review. Each review object contains fields `id`, `uploaded-time`, `textual-content` and `changed-files`:
 - Field `id` is the unique identifier of the review.
 - Field `uploaded-time` is the time when the review was committed to Gerrit system.
-- Field `reviewer` is an array of several reviewer object. Each reviewer object must at least contain field `id`(usually a 32-bit integer).
 - Field `textual-content` is text content of the review, usually commit messages.
 - Field `changed-files` is an array of changed files.
 
-An example is shown below:
+If the review object is used to **update the model**, then it must contain `reviewers` field.`reviewers` is an array of several reviewer object. Each reviewer object must at least contain field `id`(usually a 32-bit integer).
+
+As for utility `train_and_test.py`, input JSON file contains an array of many review objects. Each review object **must** contain fields `id`, `uploaded-time`, `textual-content`, `changed-files` and `reviewers`.
+
+An example input file is shown below:
 
 ```json
 [
@@ -66,9 +89,11 @@ An example is shown below:
 
 Output Format
 ==============
-Output JSON object contains top-10 recommended reviewers' IDs for all reviews, together with statistics.
+TIE model returns an array of recommended reviewers' IDs for each input review.
 
-An example is shown below:
+For utility `train_and_test.py`, output JSON object contains top-10 recommended reviewers' IDs for all reviews, together with statistics.
+
+An example output file is shown below:
 
 ```json
 {

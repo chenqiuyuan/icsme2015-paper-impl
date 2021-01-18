@@ -6,7 +6,7 @@ from nltk.corpus import stopwords
 import logging
 import argparse
 
-from model import TIEModel
+from tie_recommend import TIEModel
 if __name__ == "__main__":
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s: %(levelname)s: %(message)s")
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         l = list(s)
         return l
 
-    model = TIEModel(word_list=get_all_words(reviews), reviewer_list=get_all_reviewers(reviews), alpha=0.7, M=50, recommended_count=1000, text_splitter=split_text)
+    model = TIEModel(word_list=get_all_words(reviews), reviewer_list=get_all_reviewers(reviews), alpha=0.7, M=50, text_splitter=split_text)
 
     mrr_accumulation = 0
     is_recomm_accumulation_top_10 = 0
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         if i + 1 == len(reviews):
             break
         model.update(reviews[i])
-        recommended_reviewers = model.recommend(reviews[i + 1])
+        recommended_reviewers = model.recommend(reviews[i + 1], max_count=1000)
         actual_reviewers = list(map(lambda x: x["id"], reviews[i + 1]["reviewers"]))
         
         logging.info("Progress: {}/{} reviews".format(i + 1, len(reviews)))

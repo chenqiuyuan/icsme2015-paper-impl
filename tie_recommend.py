@@ -4,7 +4,30 @@ from datetime import datetime, timedelta
 import pickle as pkl
 
 class TIEModel:
-    def __init__(self, word_list, reviewer_list, alpha=0.7, M=100, recommended_count=10, text_splitter=lambda x: x.split(' ')):
+    """TIE Model class. 
+    `TIE` is an method proposed in an ICSME 2015 paper: Who Should Review This Change?
+    `TIE` combines the advantages of both text mining and file location-based approach.
+
+    Note that each input review must be a `dict` object, with at least 4 fields:
+    - `id`, the unique identifier of the review
+    - `uploaded-time`, the time when the review was committed to Gerrit system
+    - `textual-content`, the text content of the review, usually commit messages
+    - `changed-files`, an array of changed files
+
+    If an review object is used to update the model, then it must contain `reviewers` field,
+    which is an array of review objects. Each review object should contain at least `id` field.
+    """
+    def __init__(self, word_list, reviewer_list, alpha=0.7, M=100, text_splitter=lambda x: x.split(' ')):
+        """Initiates the model with parameters.
+
+        - `word_list` is a list with no repeated words, serving as a vocabulary table.
+        - `reviewer_list` is an array of reviewer IDs.
+        - `alpha` is a parameter in the original paper, with default value 0.7.
+        - `M` is a parameter in the original paper,  with default value 100.
+        - `text_splitter` is a function-like object, which is used to split the textual content of
+        each review. `text_splitter` accepts a `str` object as input, and output an array of
+        strings as splitted words.
+        """
         self.reviews = []
         self.word_list = word_list
         self.word_map = self._get_map(word_list)
@@ -15,15 +38,19 @@ class TIEModel:
         self._simularity_cache = {}
         self.text_splitter = text_splitter
         self.M = M
-        self.recommended_count = recommended_count
         self.alpha = alpha
     
     @classmethod
     def load(cls, file_path):
+        """Loads a model from a binary file located at `file_path`."""
         f = open(file_path, 'rb')
-        return pkl.load(f)
+        model_obj = pkl.load(f)
+        if not isinstance(model_obj, cls):
+            raise TypeError("Not TIEModel object.")
+        return model_obj
     
     def update(self, review):
+        """Updates the state of the model with an input review."""
         review = self._transform_review_format(review)
         
         if len(review["textual-content"]) == 0:
@@ -36,7 +63,10 @@ class TIEModel:
         
         self.reviews.append(review)
 
-    def recommend(self, review):
+    def recommend(self, review, max_count=10):
+        """Recommends appropriate reviewers of the given review.
+            This method returns `max_count` reviewers at most.
+        """
         review = self._transform_review_format(review)
         L = []
         for j in range(len(self.reviewer_list)):
@@ -48,13 +78,13 @@ class TIEModel:
                 map(lambda x: x[0], L)
             )
         )
-        return L[:self.recommended_count]
+        return L[:max_count]
 
     def save(self, file_path):
+        """Saves the model to `file_path`."""
         f = open(file_path, 'wb')
         pkl.dump(self, f)
         f.close()
-        pass
 
     def _get_map(self, L):
         d = {}
@@ -152,5 +182,3 @@ class TIEModel:
             return i
         else:
             return -1
-
-
