@@ -11,9 +11,14 @@ Files in this repository
 
 How to use
 ==============
+
+#### 1. retrieve_reviews.py
+
 Run `retrieve_reviews.py` to retrieve historical reviews from Gerrit systems. You can modify the variable `projects` in this file.
 
 Here I provide 4 JSON files that contains reviews from 4 big projects. You can use these files directly.
+
+#### 2. train_and_test.py
 
 Run `train_and_test.py` to train a recommendation model and test the model at the same time. The method is described in the paper:
 
@@ -32,6 +37,8 @@ Example command:
 ```bash
 python train_and_test.py --reviews_file=Android.json --output_file=output/Android_output.json
 ```
+
+#### 3. tie_recommend.py
 
 `tie_recommend.py` can be used as a Python module. Example usage is shown below:
 
